@@ -10,13 +10,16 @@ import logging
 app = FastAPI()
 
 
-class Item(BaseModel):
-    name: str
+class StudentLogin(BaseModel):
+    username: str
+    password: str
 
 
 @app.post("/scrape_attendance")
-async def scrape_attendance(item: Item):
-    student_name, percentage, end_date, subs, subs_percents = await fetch_att()
+async def scrape_attendance(sl: StudentLogin):
+    student_name, percentage, end_date, subs, subs_percents = await fetch_att(
+        sl.username, sl.password
+    )
     print(percentage)
     return {"name": student_name}
 
