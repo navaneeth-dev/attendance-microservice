@@ -1,9 +1,8 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from playwright.async_api import async_playwright
 import pytesseract
 from datetime import datetime
-import os
 import logging
 
 
@@ -15,16 +14,22 @@ class StudentLogin(BaseModel):
     password: str
 
 
+class ScrapeResponse(BaseModel):
+    student_name: str
+    percentage: str
+    end_date: str
+
+
 @app.post("/scrape_attendance")
-async def scrape_attendance(sl: StudentLogin):
-    student_name, percentage, end_date, subs, subs_percents = await fetch_att(
-        sl.username, sl.password
-    )
-    print(percentage)
-    return {"name": student_name}
+async def scrape_attendance(sl: StudentLogin) -> ScrapeResponse:
+    scrape_res = await fetch_att(sl.username, sl.password)
+    if scrape_res is None:
+        raise HTTPException(status_code=500, detail="Scrape failure")
+
+    return scrape_res
 
 
-async def fetch_att(username, pwd, max_retries=3):
+async def fetch_att(username, pwd, max_retries=3) -> ScrapeResponse:
     for _ in range(max_retries):
         async with async_playwright() as p:
             browser = await p.chromium.launch(headless=True)
@@ -58,6 +63,8 @@ async def fetch_att(username, pwd, max_retries=3):
             student_name = await left_menu.locator(
                 "#frmPageLeft > table > tbody > tr:nth-child(2) > td > b"
             ).text_content()
+            if student_name is None:
+                raise Exception("Student name not found")
 
             # Goto attendance page
             await left_menu.get_by_role("row", name="Attendance Details").click()
@@ -89,6 +96,9 @@ async def fetch_att(username, pwd, max_retries=3):
             date_obj = datetime.strptime(end_date, "%d/%b/%Y")
             end_date = date_obj.strftime("%d-%m-%Y")
 
-            return student_name, percentage, end_date, subs, sub_percents
+            scrape_res = ScrapeResponse(
+                student_name=student_name, percentage=percentage, end_date=end_date
+            )
+            return scrape_res
 
     raise Exception("Failed to login after several attempts due to invalid captcha.")
