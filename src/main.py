@@ -1,12 +1,19 @@
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
-from playwright.async_api import async_playwright
-import pytesseract
-from datetime import datetime
 import logging
+from datetime import datetime
 
+import pytesseract
+from fastapi import FastAPI, HTTPException
+from playwright.async_api import async_playwright
+from pydantic import BaseModel
 
 app = FastAPI()
+logger = logging.getLogger("uvicorn.error")
+
+
+class Subject(BaseModel):
+    subject_code: str
+    name: str
+    percent: float
 
 
 class StudentLogin(BaseModel):
@@ -18,6 +25,7 @@ class ScrapeResponse(BaseModel):
     student_name: str
     percentage: str
     end_date: str
+    subjects: list[Subject]
 
 
 @app.post("/scrape_attendance")
@@ -70,7 +78,7 @@ async def fetch_att(username, pwd, max_retries=3) -> ScrapeResponse:
             await left_menu.get_by_role("row", name="Attendance Details").click()
             await page.wait_for_load_state("networkidle")
 
-            # Navigate to attendance page and fetch percentage and end date
+            # fetch percentage and end date
             att_frame = page.frame_locator('frame[name="content"]')
             percentage = await att_frame.locator(
                 '#tblSubjectWiseAttendance tr.subtotal td:has-text("%")'
@@ -79,16 +87,22 @@ async def fetch_att(username, pwd, max_retries=3) -> ScrapeResponse:
                 "#tblSubjectWiseAttendance tr.subheader1 td:nth-child(4)"
             ).inner_text()
 
-            subs = await att_frame.locator(
-                "#tblSubjectWiseAttendance > tbody td:nth-child(2)"
-            ).all_inner_texts()
-            subs = subs[2:-1]
+            # Subject wise attendance
+            subjects: list[Subject] = []
+            rows = await att_frame.locator("#tblSubjectWiseAttendance > tbody tr").all()
+            for i, row in enumerate(rows):
+                # skip first 3 and last row (total percent)
+                if i <= 3 or i == len(rows) - 1:
+                    continue
 
-            sub_percents = await att_frame.locator(
-                "#tblSubjectWiseAttendance > tbody td:nth-child(6)"
-            ).all_inner_texts()
-            sub_percents = sub_percents[1:]
-            logging.info(f"{subs}, {sub_percents}")
+                cells = await row.locator("td").all_text_contents()
+                subject = Subject(
+                    subject_code=cells[0],
+                    name=cells[1],
+                    percent=float(cells[5].strip()[:-1]),
+                )
+                subjects.append(subject)
+                logger.info(f"{subject.subject_code} {subject.name} {subject.percent}")
 
             await page.close()
             await browser.close()
@@ -97,7 +111,10 @@ async def fetch_att(username, pwd, max_retries=3) -> ScrapeResponse:
             end_date = date_obj.strftime("%d-%m-%Y")
 
             scrape_res = ScrapeResponse(
-                student_name=student_name, percentage=percentage, end_date=end_date
+                student_name=student_name,
+                percentage=percentage,
+                end_date=end_date,
+                subjects=subjects,
             )
             return scrape_res
 
