@@ -1,21 +1,7 @@
-[tool.poetry]
+[project]
 name = "attendance-microservice"
 version = "0.1.0"
-description = ""
-authors = ["Navaneeth Rao <32010211+navaneeth-dev@users.noreply.github.com>"]
+description = "Add your description here"
 readme = "README.md"
-
-[tool.poetry.dependencies]
-python = "^3.12"
-fastapi = {extras = ["standard"], version = "^0.115.0"}
-playwright = "^1.47.0"
-pillow = "^10.4.0"
-pytesseract = "^0.3.13"
-
-
-[tool.poetry.group.dev.dependencies]
-black = "^24.8.0"
-
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires-python = ">=3.12"
+dependencies = []
