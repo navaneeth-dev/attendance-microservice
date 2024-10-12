@@ -23,4 +23,4 @@ COPY --from=builder --chown=app:app /app /app
 ENV PATH="/app/.venv/bin:$PATH"
 
 # Run the FastAPI application by default
-CMD ["fastapi", "dev", "--host", "0.0.0.0", "/app/src/uv_docker_example"]
+CMD ["fastapi", "dev", "--host", "0.0.0.0", "/app/app/main.py"]
