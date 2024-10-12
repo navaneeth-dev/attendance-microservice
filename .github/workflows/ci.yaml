@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group:
+    ${{ github.workflow }}-${{ github.ref_name }}-${{
+    github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: "build image"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+
+      - name: Build and export (multistage)
+        uses: docker/build-push-action@v6
+        with:
+          tags: attendance-microservice:latest
+          cache-from: type=gha,scope=uv-docker-example-multistage
+          cache-to: type=gha,mode=min,scope=uv-docker-example-multistage
+          outputs: type=docker,dest=/tmp/uv-docker-example-multistage.tar
+
+      - name: Upload artifact (multistage)
+        uses: actions/upload-artifact@v4
+        with:
+          name: uv-docker-example-multistage
+          path: /tmp/uv-docker-example-multistage.tar
+
