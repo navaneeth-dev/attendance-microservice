@@ -21,4 +21,4 @@ ENV PATH="/app/.venv/bin:$PATH"
 
 RUN ["playwright", "install", "--with-deps"]
 
-CMD ["fastapi", "dev", "--host", "0.0.0.0", "--port", "8080", "/app/app/main.py"]
+CMD ["fastapi", "run", "--host", "0.0.0.0", "--port", "8080", "/app/app/main.py"]
