@@ -11,16 +11,12 @@ ADD . /app
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev
 
-FROM mcr.microsoft.com/playwright/python:v1.47.0-noble
-# It is important to use the image that matches the builder, as the path to the
-# Python executable must be the same, e.g., using `python:3.11-slim-bookworm`
-# will fail.
+FROM python:3.12-slim-bookworm
 
-# Copy the application from the builder
 COPY --from=builder --chown=app:app /app /app
 
-# Place executables in the environment at the front of the path
 ENV PATH="/app/.venv/bin:$PATH"
 
-# Run the FastAPI application by default
+RUN ["playwright", "install", "--with-deps"]
+
 CMD ["fastapi", "dev", "--host", "0.0.0.0", "--port", "8080", "/app/app/main.py"]
