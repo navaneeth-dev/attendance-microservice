@@ -5,6 +5,7 @@ import pytesseract
 from fastapi import FastAPI, HTTPException
 from playwright.async_api import async_playwright
 from pydantic import BaseModel
+from datetime import date
 
 app = FastAPI()
 logger = logging.getLogger("uvicorn.error")
@@ -24,7 +25,7 @@ class StudentLogin(BaseModel):
 class ScrapeResponse(BaseModel):
     student_name: str
     percent: float
-    last_updated: str
+    last_updated: date
     subjects: list[Subject]
 
 
@@ -80,16 +81,10 @@ async def fetch_att(username, pwd, max_retries=3) -> ScrapeResponse:
 
             # fetch percent and end date
             att_frame = page.frame_locator('frame[name="content"]')
-            percent = float(
-                (
-                    await att_frame.locator(
-                        '#tblSubjectWiseAttendance tr.subtotal td:has-text("%")'
-                    ).inner_text()
-                ).strip()[:-1]
-            )
-            last_updated = await att_frame.locator(
+            last_updated_str = await att_frame.locator(
                 "#tblSubjectWiseAttendance tr.subheader1 td:nth-child(4)"
             ).inner_text()
+            last_updated = datetime.strptime(last_updated_str, "%d/%b/%Y")
 
             # Subject wise attendance
             subjects: list[Subject] = []
@@ -106,13 +101,16 @@ async def fetch_att(username, pwd, max_retries=3) -> ScrapeResponse:
                     percent=float(cells[5].strip()[:-1]),
                 )
                 subjects.append(subject)
-                logger.info(f"{subject.subject_code} {subject.name} {subject.percent}")
+
+            percent_str = await rows[-1].locator("td:nth-child(5)").text_content()
+            if percent_str is None:
+                raise Exception("Can't find percent")
+            logger.info(percent_str)
+
+            percent = float(percent_str.strip()[:-1])
 
             await page.close()
             await browser.close()
-
-            date_obj = datetime.strptime(last_updated, "%d/%b/%Y")
-            last_updated = date_obj.strftime("%d-%m-%Y")
 
             scrape_res = ScrapeResponse(
                 student_name=student_name,
