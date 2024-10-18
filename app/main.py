@@ -23,8 +23,8 @@ class StudentLogin(BaseModel):
 
 class ScrapeResponse(BaseModel):
     student_name: str
-    percentage: str
-    end_date: str
+    percent: str
+    last_updated: str
     subjects: list[Subject]
 
 
@@ -78,12 +78,12 @@ async def fetch_att(username, pwd, max_retries=3) -> ScrapeResponse:
             await left_menu.get_by_role("row", name="Attendance Details").click()
             await page.wait_for_load_state("networkidle")
 
-            # fetch percentage and end date
+            # fetch percent and end date
             att_frame = page.frame_locator('frame[name="content"]')
-            percentage = await att_frame.locator(
+            percent = await att_frame.locator(
                 '#tblSubjectWiseAttendance tr.subtotal td:has-text("%")'
             ).inner_text()
-            end_date = await att_frame.locator(
+            last_updated = await att_frame.locator(
                 "#tblSubjectWiseAttendance tr.subheader1 td:nth-child(4)"
             ).inner_text()
 
@@ -107,13 +107,13 @@ async def fetch_att(username, pwd, max_retries=3) -> ScrapeResponse:
             await page.close()
             await browser.close()
 
-            date_obj = datetime.strptime(end_date, "%d/%b/%Y")
-            end_date = date_obj.strftime("%d-%m-%Y")
+            date_obj = datetime.strptime(last_updated, "%d/%b/%Y")
+            last_updated = date_obj.strftime("%d-%m-%Y")
 
             scrape_res = ScrapeResponse(
                 student_name=student_name,
-                percentage=percentage,
-                end_date=end_date,
+                percent=percent,
+                last_updated=last_updated,
                 subjects=subjects,
             )
             return scrape_res
