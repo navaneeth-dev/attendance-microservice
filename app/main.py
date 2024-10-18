@@ -80,9 +80,13 @@ async def fetch_att(username, pwd, max_retries=3) -> ScrapeResponse:
 
             # fetch percent and end date
             att_frame = page.frame_locator('frame[name="content"]')
-            percent = await att_frame.locator(
-                '#tblSubjectWiseAttendance tr.subtotal td:has-text("%")'
-            ).inner_text()
+            percent = float(
+                (
+                    await att_frame.locator(
+                        '#tblSubjectWiseAttendance tr.subtotal td:has-text("%")'
+                    ).inner_text()
+                ).strip()[:-1]
+            )
             last_updated = await att_frame.locator(
                 "#tblSubjectWiseAttendance tr.subheader1 td:nth-child(4)"
             ).inner_text()
