@@ -23,7 +23,7 @@ class StudentLogin(BaseModel):
 
 class ScrapeResponse(BaseModel):
     student_name: str
-    percent: str
+    percent: float
     last_updated: str
     subjects: list[Subject]
 
