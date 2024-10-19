@@ -39,16 +39,14 @@ async def scrape_attendance(sl: StudentLogin) -> ScrapeResponse:
 
 
 async def fetch_att(username, pwd, max_retries=3) -> ScrapeResponse:
-    for _ in range(max_retries):
-        async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=True)
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=True)
 
-            page = await browser.new_page()
-            login_url = (
-                "http://184.95.52.42/velsonline/students/loginManager/youLogin.jsp"
-            )
-            await page.goto(login_url)
+        page = await browser.new_page()
+        login_url = "http://184.95.52.42/velsonline/students/loginManager/youLogin.jsp"
+        await page.goto(login_url)
 
+        for i in range(max_retries):
             # Fill the login form
             await page.fill('input[name="login"]', username)
             await page.fill('input[name="passwd"]', pwd)
@@ -57,7 +55,10 @@ async def fetch_att(username, pwd, max_retries=3) -> ScrapeResponse:
             captcha_image = page.locator("//img[@src='/velsonline/captchas']")
             await captcha_image.screenshot(path="captcha.png")
             captcha_text = pytesseract.image_to_string("captcha.png").strip()
-            await page.fill('input[name="ccode"]', captcha_text)
+            await page.fill(
+                'input[name="ccode"]',
+                captcha_text,
+            )
 
             # Submit the login form
             await page.click("#_save")
@@ -65,8 +66,7 @@ async def fetch_att(username, pwd, max_retries=3) -> ScrapeResponse:
 
             # Check for "Invalid Captcha" error
             if await page.locator("td:has-text('Invalid Captcha')").count() > 0:
-                await page.close()
-                continue  # Retry login
+                continue
 
             left_menu = page.frame_locator('frame[name="menu"]')
             student_name = await left_menu.locator(
@@ -75,16 +75,10 @@ async def fetch_att(username, pwd, max_retries=3) -> ScrapeResponse:
             if student_name is None:
                 raise Exception("Student name not found")
 
-            # Goto attendance page
+            # Goto attendance page & wait
             await left_menu.get_by_role("row", name="Attendance Details").click()
-            await page.wait_for_load_state("networkidle")
-
-            # fetch percent and end date
             att_frame = page.frame_locator('frame[name="content"]')
-            last_updated_str = await att_frame.locator(
-                "#tblSubjectWiseAttendance tr.subheader1 td:nth-child(4)"
-            ).inner_text()
-            last_updated = datetime.strptime(last_updated_str, "%d/%b/%Y")
+            await att_frame.get_by_text("ATTENDANCE DETAILS").wait_for(state="visible")
 
             # Subject wise attendance
             subjects: list[Subject] = []
@@ -95,6 +89,7 @@ async def fetch_att(username, pwd, max_retries=3) -> ScrapeResponse:
                     continue
 
                 cells = await row.locator("td").all_text_contents()
+                logger.info(cells)
                 subject = Subject(
                     subject_code=cells[0],
                     name=cells[1],
@@ -102,12 +97,19 @@ async def fetch_att(username, pwd, max_retries=3) -> ScrapeResponse:
                 )
                 subjects.append(subject)
 
-            percent_str = await rows[-1].locator("td:nth-child(5)").text_content()
+            # fetch percent and last_updated
+            percent_str = await att_frame.locator(
+                "#tblSubjectWiseAttendance > tbody > tr.subtotal > td:nth-child(5)"
+            ).text_content()
             if percent_str is None:
                 raise Exception("Can't find percent")
-            logger.info(percent_str)
-
             percent = float(percent_str.strip()[:-1])
+
+            # percent = float(percent_str.strip()[:-1])
+            last_updated_str = await att_frame.locator(
+                "#tblSubjectWiseAttendance tr.subheader1 td:nth-child(4)"
+            ).inner_text()
+            last_updated = datetime.strptime(last_updated_str, "%d/%b/%Y")
 
             await page.close()
             await browser.close()
