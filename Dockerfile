@@ -19,6 +19,6 @@ COPY --from=builder --chown=app:app /app /app
 
 ENV PATH="/app/.venv/bin:$PATH"
 
-RUN ["playwright", "install", "--with-deps"]
+RUN ["playwright", "install", "--with-deps", "firefox"]
 
 CMD ["fastapi", "run", "--host", "0.0.0.0", "--port", "8080", "/app/app/main.py"]
