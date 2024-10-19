@@ -40,7 +40,7 @@ async def scrape_attendance(sl: StudentLogin) -> ScrapeResponse:
 
 async def fetch_att(username, pwd, max_retries=3) -> ScrapeResponse:
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
+        browser = await p.firefox.launch(headless=True)
 
         page = await browser.new_page()
         login_url = "http://184.95.52.42/velsonline/students/loginManager/youLogin.jsp"
@@ -89,7 +89,6 @@ async def fetch_att(username, pwd, max_retries=3) -> ScrapeResponse:
                     continue
 
                 cells = await row.locator("td").all_text_contents()
-                logger.info(cells)
                 subject = Subject(
                     subject_code=cells[0],
                     name=cells[1],
@@ -99,8 +98,7 @@ async def fetch_att(username, pwd, max_retries=3) -> ScrapeResponse:
 
             # fetch percent and last_updated
             percent_str = await att_frame.locator(
-                "#tblSubjectWiseAttendance > tbody > tr.subtotal > td:nth-child(5)"
-            ).text_content()
+                "#tblSubjectWiseAttendance > tbody > tr.subtotal > td:nth-child(5)").text_content()
             if percent_str is None:
                 raise Exception("Can't find percent")
             percent = float(percent_str.strip()[:-1])
@@ -120,6 +118,7 @@ async def fetch_att(username, pwd, max_retries=3) -> ScrapeResponse:
                 last_updated=last_updated,
                 subjects=subjects,
             )
+            logger.info(scrape_res)
             return scrape_res
 
     raise Exception("Failed to login after several attempts due to invalid captcha.")
