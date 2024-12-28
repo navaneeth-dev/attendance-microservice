@@ -43,7 +43,9 @@ async def fetch_att(username, pwd, max_retries=3) -> ScrapeResponse:
         browser = await p.firefox.launch(headless=True)
 
         page = await browser.new_page()
-        login_url = "http://184.95.52.42/velsonline/students/loginManager/youLogin.jsp"
+        login_url = (
+            "https://erp.vistas.ac.in/velsonline/students/loginManager/youLogin.jsp"
+        )
         await page.goto(login_url)
 
         for i in range(max_retries):
@@ -98,7 +100,8 @@ async def fetch_att(username, pwd, max_retries=3) -> ScrapeResponse:
 
             # fetch percent and last_updated
             percent_str = await att_frame.locator(
-                "#tblSubjectWiseAttendance > tbody > tr.subtotal > td:nth-child(5)").text_content()
+                "#tblSubjectWiseAttendance > tbody > tr.subtotal > td:nth-child(5)"
+            ).text_content()
             if percent_str is None:
                 raise Exception("Can't find percent")
             percent = float(percent_str.strip()[:-1])
